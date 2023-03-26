@@ -1,18 +1,28 @@
 <section class="masters">
 <!-- Содержимое модального окна -->
-<div id="modal-block">
-  <a class="close-block" href="#close-block">X</a>
-  <div class="container__modal">
-      <p class="modal__title title">Онлайн запись</p>
-      <button class="modal__item">
-        <p class="modal__text">Выбрать специалиста</p>
-      </button> 
-      <button class="modal__item">
-        <p class="modal__text">Выбрать услугу</p>
-      </button> 
-      <button class="modal__item">
-        <p class="modal__text">Выбрать дату и время</p>
-      </button> 
-  </div>
-</div>
+  <div id="openModal" class="modal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <p class="modal__title">Онлайн запись</p>
+            <a href="#close" title="Close" class="close">×</a>
+          </div>
+          <div class="modal-body"> 
+            <button class="modal__item modal__item--display" id="modal__item--1">
+              <p class="modal__text">Выбрать специалиста</p>
+            </button> 
+            <button class="modal__item modal__item--display" id="modal__item--2">
+              <p class="modal__text ">Выбрать услугу</p>
+            </button> 
+            <button class="modal__item modal__item--display" id="modal__item--3">
+              <p class="modal__text">Выбрать дату и время</p>
+            </button> 
+          </div>
+          <div class="card__special">
+            
+          </div>
+        </div>
+      </div>
+    </div>
 </section>
+

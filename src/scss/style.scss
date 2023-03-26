@@ -2,7 +2,7 @@
 @import "jquery.fancybox.min.scss";
 @import "reset.scss";
 @import "section/masters.scss";
-
+@import "pluggins/_Slaider.scss";
 body{
    font-size: 18px;
    color: white;
@@ -39,7 +39,7 @@ body{
    justify-content: center;
    align-items: center;
    padding: 75px 15px 30px;
-   z-index: 98;
+   z-index: 102;
    position: fixed;
    top: 0;
    left: 0;
@@ -54,7 +54,7 @@ body{
    z-index: 99;
 }
 .header__top--fix{
-   background-color: #859ce5;
+   background-color: rgba(111, 80, 152);
    padding: 15px 0;
 }
 .menu__list{
@@ -71,14 +71,14 @@ body{
    opacity: 0.6;
    transition: opacity 0.4s;
 }
-.head{
-   background-blend-mode: overlay;
-   background-repeat: no-repeat;
-   background-position: center center;
-   background-size: cover;
-   background-color: rgba(35, 82, 222, 0.5);
-   background-image: url("../img/fon.jpg");
-}
+// .head{
+//    background-blend-mode: overlay;
+//    background-repeat: no-repeat;
+//    background-position: center center;
+//    background-size: cover;
+//    background-color: rgba(35, 82, 222, 0.5);
+//    background-image: url("../img/fon.jpg");
+// }
 .header__content--inner{
    display: flex;
    min-height: 100vh;
@@ -97,7 +97,7 @@ body{
    font-weight: 400;
    line-height: calc(62 / 48);
    max-width: 613px;
-   margin: 200px 0 200px;
+   margin: 200px 0 auto;
 }
 .header__btn{
    display: none;
