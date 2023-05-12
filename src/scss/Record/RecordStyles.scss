@@ -1,0 +1,94 @@
+.button__items {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.button__record {
+    margin: 10px;
+    width: 180px;
+    height: 40px;
+}
+.record {
+    display: flex;
+}
+.card__container {
+    color: black;
+    border: 1px solid black;
+    margin-top: 10px;
+    width: 300px;
+    margin-right: 5px
+}
+.record_item {
+    /* display: flex; */
+    margin: 5px;
+}
+.title_record {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    border-bottom: 1px solid black;
+    padding: 10px;
+}
+.card__masters {
+    display: flex;
+    align-items: center;
+    height: 80px;
+    max-width: 320px;
+    border: 1px solid black;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+.card__masters__img {
+    display: flex;
+    height: 60px;
+    width: 60px;
+    /* align-items: center; */
+    margin: 10px;
+    border-radius: 50%;
+    margin: 5px;
+}
+.card__masters_text {
+    display: flex;
+    align-items: center;
+}
+.card__masters__name {
+    margin: 0;
+    font-size: 18px;
+    width: 120px;
+}
+.Card__masters__spec {
+    margin: 0;
+    font-size: 14px;
+}
+.spec__container {
+    height: 80px;
+    width: 60px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+.сard__servises__price {
+    margin: 0;
+    font-size: 16px;
+}
+
+.card__services__name {
+    margin: 0;
+    font-size: 16px;
+}
+
+.card__services_text {
+    display: flex;
+    justify-content: space-between;
+}
+
+.card__services {
+    display: grid;
+    border: 1px solid black;
+    height: 80px;
+    padding: 5px;
+    align-items: center;
+}

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Портфолио</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,300&display=swap" rel="stylesheet">
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick.min.css'>
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css'>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+    @@include('html/header.html', {})
+    @@include('html/head.html', {})
+    <main>
+
+        @@include('html/section/_aboutUs.html', {})
+        @@include('html/section/_services.html', {})
+        @@include('html/section/_ourWorks.html', {})
+        @@include('html/section/_contacts.html', {})
+        <!-- @@include('html/section/_Masters.html', {}) -->
+
+    </main>
+    @@include('html/footer.html', {})
+    <script src="js/jquery.js"></script>
+    <script src="js/slick.min.js"></script>
+    <script src="js/mixitup.min.js"></script>
+    <script src="js/jquery.fancybox.min.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick.min.js'></script><script  src="./script.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

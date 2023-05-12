@@ -1,8 +1,3 @@
-@import "slick.scss";
-@import "jquery.fancybox.min.scss";
-@import "reset.scss";
-@import "section/masters.scss";
-@import "pluggins/_Slaider.scss";
 body{
    font-size: 18px;
    color: white;
@@ -616,10 +611,10 @@ body{
       }
    }
 }
-
-
-
-
-
-
-
+@import "slick.scss";
+@import "jquery.fancybox.min.scss";
+@import "reset.scss";
+@import "section/masters.scss";
+@import "pluggins/_Slaider.scss";
+@import "Record/RecordStyles.scss";
+@import "adminRecord/_adminRecord.scss";
