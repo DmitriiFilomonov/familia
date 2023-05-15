@@ -75,5 +75,3 @@ document.addEventListener("DOMContentLoaded", function(){
     document.querySelector('#openModal').style.marginLeft = '0px';
   });
 });
-
-
