@@ -1,9 +1,50 @@
-//react JS
+
 const displayNone = "display__none"
 const e = React.createElement;
 let checkClick = 0;
 
-const adminRecord = () => {
+
+
+class Users extends React.Component{
+
+    users = [
+        {
+            id: 1,
+            firstname: 'olga',
+            lastname: 'Marr',
+            spec: 'Парикмахер'
+        },
+        {
+            id: 1,
+            firstname: 'olga',
+            lastname: 'Marr',
+            spec: 'Парикмахер'
+        }
+    ]
+    render(){
+        return(
+            <div>
+                {this.users.map((el) => {
+                    <div className="card__masters" id={checkClick}>
+                        <img src="#" alt="" className="card__masters__img"/>
+                        <div className="card__masters_text">
+                            <h3 className="card__masters__name">{el.firstname} {el.lastname}</h3>
+                            <div className="spec__container">
+                                <h4 className="Card__masters__spec">{el.spec}</h4>
+                            </div>
+                        </div>
+                    </div>
+                }
+                )
+                }
+            </div>
+        )
+    }
+
+}
+
+class adminRecord extends React.Component{
+    render(){
         return(
         <div className="admin__container">
             <div className="admin__container__button">
@@ -16,7 +57,7 @@ const adminRecord = () => {
                 <div className="card__container" id="cardContainerMasters">
                     <h1 className="title_record">Мастера</h1>
                     <div className="record_item" id="record__item__master">
-                        
+                        <Users />
                     </div>
                     <button className="masters__button__add">Создать нового мастера</button>
                 </div>
@@ -55,7 +96,8 @@ const adminRecord = () => {
                 <button className="dutton__save" onClick={saveClick} id = "button__save">Сохранить</button>
             </div>  
         </div>   
-    )
+        )   
+    }
 }
 
 function includeCardMaster () {
