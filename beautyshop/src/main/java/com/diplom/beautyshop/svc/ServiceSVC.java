@@ -11,12 +11,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.diplom.beautyshop.core.RecordDto;
+import com.diplom.beautyshop.core.ReviewDto;
 import com.diplom.beautyshop.core.ServiceDto;
 import com.diplom.beautyshop.core.ServiceTypeDto;
+import com.diplom.beautyshop.core.SpecDto;
 import com.diplom.beautyshop.core.WorkerDto;
 import com.diplom.beautyshop.repo.RecordRepo;
+import com.diplom.beautyshop.repo.ReviewRepo;
 import com.diplom.beautyshop.repo.ServiceRepo;
 import com.diplom.beautyshop.repo.ServiceTypeRepo;
+import com.diplom.beautyshop.repo.SpecRepo;
 import com.diplom.beautyshop.repo.WorkerRepo;
 
 import jakarta.transaction.Transactional;
@@ -34,87 +38,50 @@ public class ServiceSVC {
 	private RecordRepo records;
 	
 	@Autowired
+	private ReviewRepo reviews;
+	
+	@Autowired
 	private WorkerRepo workers;
 	
 	@Autowired
 	private RecordSVC recordSVC;
 	
-	//@Autowired
-	//private ServiceTypeSVC typeSVC;
+	@Autowired
+	private SpecRepo specs;
+	
+	@Autowired
+	private ServiceTypeSVC typeSVC;
+	
+	@Autowired
+	private SpecSVC specSVC;
 	
 	@Transactional
-	public void AddService(String name, Long time, Float price, Float discount, String dat, String sex, String type, List<String> workers) throws ParseException {
+	public void AddService(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) throws ParseException {
 		ServiceTypeDto servType = null;
 		if(type != null) servType = serviceTypes.getOneByNameIgnoreCase(type);
+		SpecDto sp = null;
+		if(spec != null) sp = specs.getOneByNameIgnoreCase(spec);
 		Date d = null;
 		if(dat != null) d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
-		List<WorkerDto> works = new ArrayList<WorkerDto>();
-		WorkerDto w;
-		if(workers != null) {
-			for(String s : workers) {
-				w = this.workers.getOneByfioIgnoreCase(s);
-				works.add(w);
-			}
-		}
-		services.save(new ServiceDto(name, time, price, discount, d, sex, servType, works));
+		services.save(new ServiceDto(name, time, price, discount, d, sex, servType, sp));
 	}
 	
-	//в AppSVC
 	@Transactional
-	public void AddServiceWithType(String name, Long time, Float price, Float discount, String dat, String sex, String type, List<String> workers) 
+	public void AddServiceWithType(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
 			throws ParseException {
-		//typeSVC.AddType(name);
-		ServiceTypeDto servType = new ServiceTypeDto();
-		if(type != null) servType = serviceTypes.getOneByNameIgnoreCase(type);
-		Date d = null;
-		if(dat != null) d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
-		List<WorkerDto> works = new ArrayList<WorkerDto>();
-		WorkerDto w;
-		if(workers != null) {
-			for(String s : workers) {
-				w = this.workers.getOneByfioIgnoreCase(s);
-				works.add(w);
-			}
-		}
-		services.save(new ServiceDto(name, time, price, discount, d, sex, servType, works));
+		typeSVC.AddType(type);
+		AddService(name, time, price, discount, dat, sex, type, spec);
 	}
 	
 	@Transactional
-	public void AddWorker(String serv, String worker) throws ParseException {
-		WorkerDto w = workers.getOneByfioIgnoreCase(worker);
-		ServiceDto s = services.getOneByNameIgnoreCase(serv);
-		s.workers.add(w);
-		services.save(s);
+	public void AddServiceWithSpec(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
+			throws ParseException {
+		specSVC.AddSpec(spec);
+		AddService(name, time, price, discount, dat, sex, type, spec);
 	}
 	
 	@Transactional
-	public void DelWorker(String serv, String worker) throws ParseException {
-		WorkerDto wor;
-		ServiceDto s = (ServiceDto) Hibernate.unproxy(services.getOneByNameIgnoreCase(serv));
-		int i = 0;
-		for(WorkerDto w : s.workers) {
-			wor = (WorkerDto) Hibernate.unproxy(w);
-			if(wor.fio == worker) { 
-				s.workers.remove(i);
-				break;
-			}
-			i++;
-		}
-		services.save(s);
-	}
-	
-	@Transactional
-	public void DelService(String name) throws ParseException {
-		ServiceDto serv = services.getOneByNameIgnoreCase(name);
-		List<RecordDto> recs = records.findAllByservice(serv);
-		for(RecordDto rec : recs) {
-			recordSVC.DelRecord(rec.pkRecord);
-		}
-		services.delete(serv);
-	}
-	
-	@Transactional
-	public void SetService(Long id, String name, Long time, Float price, Float discount, String dat, String sex, String type, List<String> workers)
+	public void SetService(Long id, String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec)
 			throws ParseException {
 		ServiceDto serv = services.getById(id);
 		if(name != null) serv.SetName(name);
@@ -130,16 +97,25 @@ public class ServiceSVC {
 			ServiceTypeDto servType = serviceTypes.getOneByNameIgnoreCase(type);
 			serv.SetType(servType);
 		}
-		List<WorkerDto> works = new ArrayList<WorkerDto>();
-		WorkerDto w;
-		if(workers != null) {
-			for(String s : workers) {
-				w = this.workers.getOneByfioIgnoreCase(s);
-				works.add(w);
-			}
-			serv.SetWorkers(works);
+		if(spec != null) {
+			SpecDto sp = specs.getOneByNameIgnoreCase(type);
+			serv.SetSpec(sp);
 		}
 		services.save(serv);
+	}
+
+	@Transactional
+	public void DelService(String name) throws ParseException {
+		ServiceDto serv = services.getOneByNameIgnoreCase(name);
+		List<RecordDto> recs = records.findAllByservice(serv);
+		for(RecordDto rec : recs) {
+			recordSVC.DelRecord(rec.pkRecord);
+		}
+		List<ReviewDto> revs = reviews.findAllByservice(serv);
+		for(ReviewDto rev : revs) {
+			reviews.delete(rev);
+		}
+		services.delete(serv);
 	}
 	
 	public List<ServiceDto> GetServices(){
@@ -150,23 +126,14 @@ public class ServiceSVC {
 		return services.getOneByNameIgnoreCase(name);
 	}
 	
-	public List<ServiceDto> GetServicesByWorker(String fio){
-		WorkerDto w = workers.getOneByfioIgnoreCase(fio);
-		List<ServiceDto> s1 = services.findAllByworkers(w);
-		List<ServiceDto> servs = services.findAll();
-		WorkerDto worker = workers.getOneByfioIgnoreCase(fio);
-		for(int i = 0; i < servs.size(); i++) {
-			if(!servs.get(i).workers.contains(worker)){
-				servs.remove(i);
-				i--;
-			}
-		}
-		return s1;
-	}
-	
 	public List<ServiceDto> GetServicesByType(String type){
 		ServiceTypeDto servType = serviceTypes.getOneByNameIgnoreCase(type);
 		return services.findAllByserviceType(servType);
+	}
+	
+	public List<ServiceDto> GetServicesBySpec(String spec){
+		SpecDto sp = specs.getOneByNameIgnoreCase(spec);
+		return sp.servs;
 	}
 	
 }

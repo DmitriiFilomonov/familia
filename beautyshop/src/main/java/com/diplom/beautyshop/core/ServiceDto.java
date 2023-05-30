@@ -45,18 +45,18 @@ public class ServiceDto implements Serializable {
 	@JoinColumn(name = "Service_Type")
 	public ServiceTypeDto serviceType;
 	
-	@ManyToMany
-	@JoinTable(name = "Mid_Worker_Service", 
-		joinColumns = { @JoinColumn(name = "Service") },
-		inverseJoinColumns = { @JoinColumn(name = "Worker") })
-	public List<WorkerDto> workers;
+	@ManyToOne
+	@JoinColumn(name = "Spec")
+	public SpecDto spec;
+	
+	//Отзывы
 	
 	protected ServiceDto() {
 		
 	}
 	
-	public void SetWorkers(List<WorkerDto> works) {
-		this.workers = works;
+	public void SetSpec(SpecDto sp) {
+		this.spec = sp;
 	}
 	
 	public void SetName(String nam) {
@@ -72,7 +72,7 @@ public class ServiceDto implements Serializable {
 	}
 	
 	public void SetDiscount(Float discount) {
-		this.discountPrice = discount;
+		this.discountPrice = discount / 100;
 	}
 	
 	public void SetDiscountDate(Date dat) {
@@ -87,29 +87,20 @@ public class ServiceDto implements Serializable {
 		this.serviceType = type;
 	}
 	
-	public List<WorkerDto> GetWorkers(){
-		return workers;
+	public SpecDto GetSpec(){
+		return spec;
 	}
 	
-	public ServiceDto(String name, Long time, Float money, Float notMoney, Date dat, String sex, ServiceTypeDto type) {
+	public ServiceDto(String name, Long time, Float money, Float notMoney, Date dat, String sex, ServiceTypeDto type, SpecDto sp) {
 		this.name = name;
 		this.length = time;
 		this.price = money;
-		this.discountPrice = notMoney;
+		this.discountPrice = notMoney / 100;
 		this.discountDate = dat;
 		this.sex = sex;
 		this.serviceType = type;
+		this.spec = sp;
 	}
 	
-	public ServiceDto(String name, Long time, Float money, Float notMoney, Date dat, String sex, ServiceTypeDto type, List<WorkerDto> ws) {
-		this.name = name;
-		this.length = time;
-		this.price = money;
-		this.discountPrice = notMoney;
-		this.discountDate = dat;
-		this.sex = sex;
-		this.serviceType = type;
-		this.workers = ws;
-	}
 }
 

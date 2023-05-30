@@ -31,6 +31,9 @@ public class RecordSVC {
 	private RecordRepo records;
 	
 	@Autowired
+	private ClientSVC clientSVC;
+	
+	@Autowired
 	private ServiceRepo services;
 	
 	@Autowired
@@ -43,21 +46,18 @@ public class RecordSVC {
 		WorkerDto w = workers.getOneByfioIgnoreCase(worker);
 		Date d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
 		if(CheckFreeTime(d, worker)) {
-			RecordDto r = new RecordDto(d, s, c, w);
+			Float pr = s.price * (s.discountPrice + c.clientType.discount);
+			Long st = (long) 1;
+			RecordDto r = new RecordDto(d, st, pr, s, c, w);
 			records.save(r);
+			clientSVC.UpdateType(c.pkClient);
 			return true;
 		}
 		else return false;
 	}
-	
-	@Transactional
-	public void DelRecord(Long id) {
-		RecordDto rec = records.getById(id);
-		records.delete(rec);
-	}
 
 	@Transactional
-	public void SetRecord(Long id, String dat, String serv, String client, String worker) throws ParseException {
+	public void SetRecord(Long id, String dat, Long state, Float price, String serv, String client, String worker) throws ParseException {
 		RecordDto rec = (RecordDto) Hibernate.unproxy(records.getById(id));
 		ClientDto c = null;
 		if(client != null) c = clients.getOneByfioIgnoreCase(client);
@@ -69,6 +69,8 @@ public class RecordSVC {
 		if(dat != null) d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
 		if(c != null) rec.SetClient(c);
 		if(d != null) rec.SetDate(d);
+		if(state != null) rec.state = state;
+		if(price != null) rec.price = price;
 		if(s != null) rec.SetService(s);
 		if(w != null) rec.SetWorker(w);
 		String work;
@@ -77,8 +79,15 @@ public class RecordSVC {
 		if(d != null) {
 			if(CheckFreeTime(d, work)) {
 				records.save(rec);
+				clientSVC.UpdateType(rec.client.pkClient);
 			}
 		}
+	}
+	
+	@Transactional
+	public void DelRecord(Long id) {
+		RecordDto rec = records.getById(id);
+		records.delete(rec);
 	}
 	
 	public List<RecordDto> GetRecords(){

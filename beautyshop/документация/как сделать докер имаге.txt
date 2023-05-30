@@ -1,8 +1,0 @@
-1)docker nerwork create "название" - создание сети
-1?)docker network ls - посмотреть сети
-2)docker container run --name postgresdb --network diplom-postgres -e POSTGRES_PASSWORD=1324 -e POSTGRES_USER=postgres -e POSTGRES_DB=ShopDB -d postgres - создать контейнер для базы
-3)в настройках приложения поменять localhost на название контейнера
-4)dockerfile
-5)maven install без тестов (run configuration - 2 конфигурация)
-6)docker image build -t diplomapp . - создать имаге для приложения
-7)docker container run --network diplom-postgres --name app -p 8080:2345 -d diplomapp - создать контейнер для приложения

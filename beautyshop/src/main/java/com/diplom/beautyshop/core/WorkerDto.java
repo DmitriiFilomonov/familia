@@ -7,7 +7,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -37,8 +39,9 @@ public class WorkerDto implements Serializable {
 	@Column
 	public String foto;
 	
-	@ManyToMany(mappedBy = "workers")
-	public List<ServiceDto> services;
+	@ManyToOne
+	@JoinColumn(name = "Spec")
+	public SpecDto spec;
 	
 	public void SetWorkTime(Long time) {
 		this.workTime = time;
@@ -64,16 +67,21 @@ public class WorkerDto implements Serializable {
 		this.foto = foto;
 	}
 	
+	public void SetSpec(SpecDto sp) {
+		this.spec = sp;
+	}
+	
 	protected WorkerDto() {
 		
 	}
 	
-	public WorkerDto(String name, Long time, Float money, Float notMoney, String prof, String fot) {
+	public WorkerDto(String name, Long time, Float money, Float notMoney, String prof, String fot, SpecDto sp) {
 		this.fio = name;
 		this.workTime = time;
 		this.salary = money;
 		this.notPaid = notMoney;
 		this.profile = prof;
 		this.foto = fot;
+		this.spec = sp;
 	}
 }

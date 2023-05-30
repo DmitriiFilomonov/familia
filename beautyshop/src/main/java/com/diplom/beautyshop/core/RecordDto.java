@@ -23,6 +23,12 @@ public class RecordDto implements Serializable {
 	@Column
 	public Date date;
 	
+	@Column
+	public Long state;
+	
+	@Column
+	public Float price;
+	
 	@ManyToOne
 	@JoinColumn(name = "Service")
 	public ServiceDto service;
@@ -55,8 +61,10 @@ public class RecordDto implements Serializable {
 		
 	}
 	
-	public RecordDto(Date dat, ServiceDto serv, ClientDto client, WorkerDto work) {
+	public RecordDto(Date dat, Long state, Float price, ServiceDto serv, ClientDto client, WorkerDto work) {
 		this.date = dat;
+		this.state = state;
+		this.price = price;
 		this.service = serv;
 		this.client = client;
 		this.worker = work;

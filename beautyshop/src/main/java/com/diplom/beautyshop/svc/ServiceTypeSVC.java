@@ -23,9 +23,6 @@ public class ServiceTypeSVC {
 	@Autowired
 	private ServiceRepo services;
 	
-	//@Autowired
-	//private ServiceSVC serviceSVC;
-	
 	@Transactional
 	public void AddType(String name) {
 		ServiceTypeDto type = new ServiceTypeDto(name);
@@ -39,29 +36,18 @@ public class ServiceTypeSVC {
 		types.save(type);
 	}
 	
-	public List<ServiceTypeDto> GetTypes(){
-		return types.findAll();
-	}
-	
-	public ServiceTypeDto GetType(String name){
-		return types.getOneByNameIgnoreCase(name);
-	}
-	
 	@Transactional
 	public void DelType(String name) throws ParseException {
 		ServiceTypeDto type = types.getOneByNameIgnoreCase(name);
 		types.delete(type);
 	}
 	
-	//в AppSVC
-	@Transactional
-	public void DelTypeWithServices(String name) throws ParseException {
-		ServiceTypeDto type = types.getOneByNameIgnoreCase(name);
-		List<ServiceDto> servs = services.findAllByserviceType(type);
-		//for(ServiceDto serv : servs) {
-			//serviceSVC.DelService(serv.name);
-		//}
-		types.delete(type);
+	public List<ServiceTypeDto> GetTypes(){
+		return types.findAll();
+	}
+	
+	public ServiceTypeDto GetType(String name){
+		return types.getOneByNameIgnoreCase(name);
 	}
 	
 }

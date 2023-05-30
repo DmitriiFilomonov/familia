@@ -6,6 +6,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -18,14 +20,19 @@ public class ClientDto implements Serializable {
 	public Long pkClient;
 	
 	@Column
-	public String contactInfo;
+	public String email;
+	
+	@Column
+	public String number;
 	
 	@Column
 	public String fio;
 	
-	public void SetInfo(String info) {
-		this.contactInfo = info;
-	}
+	//Отзыв
+	
+	@ManyToOne
+	@JoinColumn(name = "ClientType")
+	public ClientTypeDto clientType;
 	
 	public void SetFIO(String fio) {
 		this.fio = fio;
@@ -35,14 +42,12 @@ public class ClientDto implements Serializable {
 		
 	}
 	
-	public ClientDto(String info) {
-		this.contactInfo = info;
-		fio = "";
-	}
-	
-	public ClientDto(String info, String name) {
-		this.contactInfo = info;
+	public ClientDto(String email, String num, String name, ClientTypeDto type) {
+		this.email = email;
 		fio = name;
+		this.number = num;
+		this.clientType = type;
 	}
+
 }
 
