@@ -45,8 +45,10 @@ public class ProductDto implements Serializable {
 	
 	public ProductDto(String name, Float price, Float discountPrice, Date discountDate, Long amount, ProductTypeDto type) {
 		this.name = name;
-		this.price = price;
-		this.discountPrice = discountPrice;
+		if(price != null) this.price = price;
+		else this.price = (float) 0;
+		if(discountPrice != null) this.discountPrice = discountPrice / 100;
+		else this.discountPrice = (float) 0;
 		this.discountDate = discountDate;
 		this.amount = amount;
 		this.productType = type;

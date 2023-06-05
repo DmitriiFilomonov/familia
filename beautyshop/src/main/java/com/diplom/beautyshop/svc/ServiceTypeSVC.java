@@ -3,6 +3,7 @@ package com.diplom.beautyshop.svc;
 import java.text.ParseException;
 import java.util.List;
 
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,22 +25,45 @@ public class ServiceTypeSVC {
 	private ServiceRepo services;
 	
 	@Transactional
-	public void AddType(String name) {
+	public int AddType(String name) {
 		ServiceTypeDto type = new ServiceTypeDto(name);
-		types.save(type);
+		if(types.getOneByNameIgnoreCase(name) == null) {
+			types.save(type);
+			return 1;
+		}
+		else return 2;
 	}
 
 	@Transactional
-	public void SetType(Long id, String name) {
-		ServiceTypeDto type = types.getById(id);
-		if(name != null) type.SetName(name);
-		types.save(type);
+	public int SetType(Long id, String name) {
+		try {
+			ServiceTypeDto type = (ServiceTypeDto) Hibernate.unproxy(types.getById(id));
+			if(name != null) {
+				if(types.getOneByNameIgnoreCase(name) == null) {
+					type.SetName(name);
+				}
+				else return 2;
+			}
+			types.save(type);
+			return 1;
+		}
+		catch(Exception ex){
+			return 2;
+		}
 	}
 	
 	@Transactional
-	public void DelType(String name) throws ParseException {
+	public int DelType(String name) throws ParseException {
 		ServiceTypeDto type = types.getOneByNameIgnoreCase(name);
-		types.delete(type);
+		if(type != null) {
+			List<ServiceDto> servs = services.findAllByserviceType(type);
+			for(ServiceDto serv : servs) {
+				serv.serviceType = null;
+			}
+			types.delete(type);
+			return 1;
+		}
+		else return 2;
 	}
 	
 	public List<ServiceTypeDto> GetTypes(){

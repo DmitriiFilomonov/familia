@@ -43,7 +43,8 @@ public class ClientTypeDto implements Serializable {
 	
 	public ClientTypeDto(String name, Float dis, Long lev, Float spend, Long went, Long time) {
 		this.name = name;
-		this.discount = dis / 100;
+		if(discount != null) this.discount = dis / 100;
+		else this.discount = (float) 0;
 		this.level = lev;
 		this.spend = spend;
 		this.went = went;

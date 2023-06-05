@@ -33,29 +33,59 @@ public class ReviewSVC {
 	private ServiceRepo services;
 	
 	@Transactional
-	public void AddReview(Long score, String comment, String client, String serv) throws ParseException {
-		ClientDto c = clients.getOneByfioIgnoreCase(client);
-		ServiceDto s = services.getOneByNameIgnoreCase(serv);
+	public int AddReview(Long score, String comment, String client, String serv) throws ParseException {
+		ClientDto c = null;
+		if(client != null) {
+			c = clients.getOneByfioIgnoreCase(client);
+			if(c == null) return 2;
+		}
+		ServiceDto s = null;
+		if(serv != null) {
+			s = services.getOneByNameIgnoreCase(serv);
+			if(s == null) return 2;
+		}
 		reviews.save(new ReviewDto(comment, score, c, s));
+		return 1;
 	}
 
 	@Transactional
-	public void SetReview(Long id, Long score, String comment, String client, String serv) throws ParseException {
-		ReviewDto rev = (ReviewDto) Hibernate.unproxy(reviews.getById(id));
-		ClientDto c = null;
-		if(client != null) c = clients.getOneByfioIgnoreCase(client);
-		ServiceDto s = null;
-		if(serv != null) s = services.getOneByNameIgnoreCase(serv);
-		if(c != null) rev.client = c;
-		if(score != null) rev.score = score;
-		if(comment != null) rev.comment = comment;
-		reviews.save(rev);
+	public int SetReview(Long id, Long score, String comment, String client, String serv) throws ParseException {
+		try {
+			ReviewDto rev = (ReviewDto) Hibernate.unproxy(reviews.getById(id));
+			if(rev == null) return 2;
+			ClientDto c = null;
+			if(client != null) {
+				c = clients.getOneByfioIgnoreCase(client);
+				if(c == null) return 2;
+			}
+			ServiceDto s = null;
+			if(serv != null) {
+				s = services.getOneByNameIgnoreCase(serv);
+				if(s == null) return 2;
+			}
+			if(c != null) rev.client = c;
+			if(s != null) rev.service = s;
+			if(score != null) rev.score = score;
+			if(comment != null) rev.comment = comment;
+			reviews.save(rev);
+			return 1;
+		}
+		catch(Exception ex) {
+			return 2;
+		}
 	}
 	
 	@Transactional
-	public void DelReview(Long id) {
-		ReviewDto rev = reviews.getById(id);
-		reviews.delete(rev);
+	public int DelReview(Long id) {
+		try {
+			ReviewDto rev = reviews.getById(id);
+			if(rev == null) return 2;
+			reviews.delete(rev);
+			return 1;
+		}
+		catch(Exception ex) {
+			return 2;
+		}
 	}
 	
 	public List<ReviewDto> GetReviews(){

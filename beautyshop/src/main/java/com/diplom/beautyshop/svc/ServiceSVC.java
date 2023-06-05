@@ -3,6 +3,7 @@ package com.diplom.beautyshop.svc;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -10,6 +11,7 @@ import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.diplom.beautyshop.core.ProductDto;
 import com.diplom.beautyshop.core.RecordDto;
 import com.diplom.beautyshop.core.ReviewDto;
 import com.diplom.beautyshop.core.ServiceDto;
@@ -56,57 +58,105 @@ public class ServiceSVC {
 	private SpecSVC specSVC;
 	
 	@Transactional
-	public void AddService(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) throws ParseException {
+	public int AddService(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) throws ParseException {
 		ServiceTypeDto servType = null;
-		if(type != null) servType = serviceTypes.getOneByNameIgnoreCase(type);
-		SpecDto sp = null;
-		if(spec != null) sp = specs.getOneByNameIgnoreCase(spec);
-		Date d = null;
-		if(dat != null) d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
-		services.save(new ServiceDto(name, time, price, discount, d, sex, servType, sp));
-	}
-	
-	@Transactional
-	public void AddServiceWithType(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
-			throws ParseException {
-		typeSVC.AddType(type);
-		AddService(name, time, price, discount, dat, sex, type, spec);
-	}
-	
-	@Transactional
-	public void AddServiceWithSpec(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
-			throws ParseException {
-		specSVC.AddSpec(spec);
-		AddService(name, time, price, discount, dat, sex, type, spec);
-	}
-	
-	@Transactional
-	public void SetService(Long id, String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec)
-			throws ParseException {
-		ServiceDto serv = services.getById(id);
-		if(name != null) serv.SetName(name);
-		if(time != null) serv.SetLength(time);
-		if(price != null) serv.SetPrice(price);
-		if(discount != null) serv.SetDiscount(discount);
-		if(dat != null) {
-			Date d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
-			serv.SetDiscountDate(d);
-		}
-		if(sex != null) serv.SetSex(sex);
 		if(type != null) {
-			ServiceTypeDto servType = serviceTypes.getOneByNameIgnoreCase(type);
-			serv.SetType(servType);
+			servType = serviceTypes.getOneByNameIgnoreCase(type);
+			if(servType == null) return 2;
 		}
+		SpecDto sp = null;
 		if(spec != null) {
-			SpecDto sp = specs.getOneByNameIgnoreCase(type);
-			serv.SetSpec(sp);
+			sp = specs.getOneByNameIgnoreCase(spec);
+			if(sp == null) return 2;
 		}
-		services.save(serv);
+		Date d = null;
+		try {
+			if(dat != null) d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
+		}
+		catch(Exception ex) {
+			return 2;
+		}
+		if(services.getOneByNameIgnoreCase(name) != null) return 2;
+		services.save(new ServiceDto(name, time, price, discount, d, sex, servType, sp));
+		return 1;
+	}
+	
+	@Transactional
+	public int UpdateService() {
+		List<ServiceDto> servs = services.findAll();
+		Date dat = new Date();
+		for(ServiceDto serv : servs) {
+			if(dat.after(serv.discountDate)) {
+				serv.discountPrice = null;
+				serv.discountDate = null;
+				services.save(serv);
+			}
+		}
+		return 1;
+	}
+	
+	@Transactional
+	public int AddServiceWithType(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
+			throws ParseException {
+		int res = typeSVC.AddType(type);
+		if(res == 1) {
+			res = AddService(name, time, price, discount, dat, sex, type, spec);
+		}
+		return res;
+	}
+	
+	@Transactional
+	public int AddServiceWithSpec(String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec) 
+			throws ParseException {
+		int res = specSVC.AddSpec(spec);
+		if(res == 1) {
+			res = AddService(name, time, price, discount, dat, sex, type, spec);
+		}
+		return res;
+	}
+	
+	@Transactional
+	public int SetService(Long id, String name, Long time, Float price, Float discount, String dat, String sex, String type, String spec)
+			throws ParseException {
+		try {
+			ServiceDto serv = (ServiceDto) Hibernate.unproxy(services.getById(id));
+			if(serv == null) return 2;
+			if(name != null) {
+				if(services.getOneByNameIgnoreCase(name) != null) return 2;
+			}
+			ServiceTypeDto servType = null;
+			if(type != null) {
+				servType = serviceTypes.getOneByNameIgnoreCase(type);
+				if(servType == null) return 2;
+			}
+			SpecDto sp = null;
+			if(spec != null) {
+				sp = specs.getOneByNameIgnoreCase(spec);
+				if(sp == null) return 2;
+			}
+			if(dat != null) {
+				Date d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(dat);
+				serv.discountDate = d;
+			}
+			if(name != null) serv.name = name;
+			if(type != null) serv.serviceType = servType;
+			if(spec != null) serv.spec = sp;
+			if(time != null) serv.length = time;
+			if(price != null) serv.price = price;
+			if(discount != null) serv.discountPrice = discount;
+			if(sex != null) serv.sex = sex;
+			services.save(serv);
+			return 1;
+		}
+		catch(Exception ex) {
+			return 2;
+		}
 	}
 
 	@Transactional
-	public void DelService(String name) throws ParseException {
-		ServiceDto serv = services.getOneByNameIgnoreCase(name);
+	public int DelService(String name) throws ParseException {
+		ServiceDto serv = (ServiceDto) Hibernate.unproxy(services.getOneByNameIgnoreCase(name));
+		if(serv == null) return 2;
 		List<RecordDto> recs = records.findAllByservice(serv);
 		for(RecordDto rec : recs) {
 			recordSVC.DelRecord(rec.pkRecord);
@@ -116,24 +166,55 @@ public class ServiceSVC {
 			reviews.delete(rev);
 		}
 		services.delete(serv);
+		return 1;
 	}
 	
-	public List<ServiceDto> GetServices(){
-		return services.findAll();
+	public List<ServiceDto> GetServices(Long f){
+		List<ServiceDto> aaa = services.findAll();
+		if(f == 1) Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
 	}
 	
 	public ServiceDto GetService(String name){
 		return services.getOneByNameIgnoreCase(name);
 	}
 	
-	public List<ServiceDto> GetServicesByType(String type){
-		ServiceTypeDto servType = serviceTypes.getOneByNameIgnoreCase(type);
-		return services.findAllByserviceType(servType);
+	public ServiceDto GetService(Long id){
+		return (ServiceDto) Hibernate.unproxy(services.getById(id));
 	}
 	
-	public List<ServiceDto> GetServicesBySpec(String spec){
+	public List<ServiceDto> GetServicesByType(String type, Long f){
+		ServiceTypeDto servType = serviceTypes.getOneByNameIgnoreCase(type);
+		List<ServiceDto> aaa = services.findAllByserviceType(servType);
+		if(f == 1) Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
+	}
+	
+	public List<ServiceDto> GetServicesBySpec(String spec, Long f){
 		SpecDto sp = specs.getOneByNameIgnoreCase(spec);
-		return sp.servs;
+		List<ServiceDto> aaa = sp.servs;
+		if(f == 1) Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
+	}
+	
+	public List<ServiceDto> GetServicesByType(Long id , Long f){
+		ServiceTypeDto servType = (ServiceTypeDto) Hibernate.unproxy(serviceTypes.getById(id));
+		List<ServiceDto> aaa = services.findAllByserviceType(servType);
+		if(f == 1) Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
+	}
+	
+	public List<ServiceDto> GetServicesBySpec(Long id, Long f){
+		SpecDto sp = (SpecDto) Hibernate.unproxy(specs.getById(id));
+		List<ServiceDto> aaa = sp.servs;
+		if(f == 1) Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
+	}
+	
+	public List<ServiceDto> GetServicesSortedById(){
+		List<ServiceDto> aaa = services.findAll();
+		Collections.sort(aaa, (o1, o2) -> o1.pkService.compareTo(o2.pkService));
+		return aaa;
 	}
 	
 }

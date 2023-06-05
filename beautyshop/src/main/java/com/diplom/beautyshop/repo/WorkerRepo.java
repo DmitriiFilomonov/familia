@@ -12,5 +12,7 @@ public interface WorkerRepo extends JpaRepository<WorkerDto, Long>{
 
 	WorkerDto getOneByfioIgnoreCase(String nam);
 	
+	WorkerDto getOneByloginIgnoreCase(String log);
+	
 	List<WorkerDto> findAllByspec(SpecDto spec);
 }

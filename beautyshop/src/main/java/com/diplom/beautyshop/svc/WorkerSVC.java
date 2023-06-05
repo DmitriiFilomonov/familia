@@ -1,6 +1,7 @@
 package com.diplom.beautyshop.svc;
 
 import java.text.ParseException;
+import java.util.Collections;
 import java.util.List;
 
 import org.hibernate.Hibernate;
@@ -48,59 +49,134 @@ public class WorkerSVC {
 	private CheckRepo checks;
 	
 	@Transactional
-	public void AddWorker(String name, Long time, Float money, Float notMoney, String prof, String foto, String spec) {
-		SpecDto sp = specs.getOneByNameIgnoreCase(spec);
-		WorkerDto worker = new WorkerDto(name, time, money, notMoney, prof, foto, sp);
+	public int AddWorker(String name, Long time, Float money, Float notMoney, String prof, String foto, String login, String pass, String spec) {
+		if(workers.getOneByfioIgnoreCase(name) != null) return 2;
+		SpecDto sp = null;
+		if(spec != null) {
+			sp = specs.getOneByNameIgnoreCase(spec);
+			if(sp == null) return 2;
+		}
+		WorkerDto worker = new WorkerDto(name, time, money, notMoney, prof, foto, login, pass, sp);
 		workers.save(worker);
+		return 1;
 	}
 	
 	@Transactional
-	public void AddWorkerWithSpec(String name, Long time, Float money, Float notMoney, String prof, String foto, String spec) {
-		specSVC.AddSpec(spec);
-		AddWorker(name, time, money, notMoney, prof, foto, spec);
+	public int AddWorkerWithSpec(String name, Long time, Float money, Float notMoney, String prof, String foto, String login, String pass, String spec) {
+		int res = specSVC.AddSpec(spec);
+		if(res == 1) {
+			res = AddWorker(name, time, money, notMoney, prof, foto, login, pass, spec);
+		}
+		return res;
 	}
 
 	@Transactional
-	public void SetWorker(Long id, String name, Long time, Float money, Float notMoney, String prof, String foto, String spec) {
-		WorkerDto worker = (WorkerDto) Hibernate.unproxy(workers.getById(id));
-		if(name != null) worker.SetFIO(name);
-		if(foto != null) worker.SetFoto(foto);
-		if(notMoney != null) worker.SetNotPaid(notMoney);
-		if(prof != null)worker.SetProfile(prof);
-		if(money != null)worker.SetSalary(money);
-		if(time != null) worker.SetWorkTime(time);
-		if(spec != null) {
-			SpecDto sp = specs.getOneByNameIgnoreCase(spec);
-			worker.SetSpec(sp);
+	public int SetWorker(Long id, String name, Long time, Float money, Float notMoney, String prof, String foto, String login, String pass, String spec) {
+		try {
+			WorkerDto worker = (WorkerDto) Hibernate.unproxy(workers.getById(id));
+			if(worker == null) return 2;
+			if(name != null) {
+				if(workers.getOneByfioIgnoreCase(name) != null) return 2;
+			}
+			if(spec != null) {
+				SpecDto sp = specs.getOneByNameIgnoreCase(spec);
+				if(sp == null) return 2;
+				worker.spec = sp;
+			}
+			if(name != null) worker.fio = name;
+			if(foto != null) worker.foto = foto;
+			if(notMoney != null) worker.notPaid = notMoney;
+			if(prof != null)worker.profile = prof;
+			if(money != null)worker.salary = money;
+			if(time != null) worker.workTime = time;
+			if(login != null) worker.login = login;
+			if(pass != null) worker.pass = pass;
+			workers.save(worker);
+			return 1;
 		}
-		workers.save(worker);
+		catch(Exception ex) {
+			return 2;
+		}
 	}
 	
 	@Transactional
-	public void DelWorker(Long id) {
-		WorkerDto worker = workers.getById(id);
-		List<RecordDto> recs = records.findAllByworker(worker);
-		for(RecordDto rec : recs) {
-			recordSVC.DelRecord(rec.pkRecord);
+	public int DelWorker(Long id) {
+		try {
+			WorkerDto worker = (WorkerDto) Hibernate.unproxy(workers.getById(id));
+			if(worker == null) return 2;
+			List<RecordDto> recs = records.findAllByworker(worker);
+			for(RecordDto rec : recs) {
+				rec.worker = null;
+			}
+			List<CheckDto> chs = checks.findAllByworker(worker);
+			for(CheckDto ch : chs) {
+				ch.worker = null;
+			}
+			workers.delete(worker);
+			return 1;
 		}
-		List<CheckDto> chs = checks.findAllByworker(worker);
-		for(CheckDto ch : chs) {
-			checkSVC.DelCheck(ch.pkCheck);
+		catch(Exception ex) {
+			return 2;
 		}
-		workers.delete(worker);
 	}
 	
-	public List<WorkerDto> GetWorkers(){
-		return workers.findAll();
+	public List<WorkerDto> GetWorkers(Long f){
+		List<WorkerDto> aaa = workers.findAll();
+		if(f == 1) {
+			Collections.sort(aaa, (o1, o2) -> o1.pkWorker.compareTo(o2.pkWorker));
+		}
+		if(f == 2) {
+			Collections.sort(aaa, (o1, o2) -> o1.fio.compareTo(o2.fio));
+		}
+		return aaa;
 	}
 	
 	public WorkerDto GetWorker(String name){
 		return workers.getOneByfioIgnoreCase(name);
 	}
 	
-	public List<WorkerDto> GetWorkersBySpec(String spec){
+	public WorkerDto GetWorkerByLogin(String log){
+		return workers.getOneByloginIgnoreCase(log);
+	}
+	
+	public WorkerDto GetWorker(Long id){
+		return (WorkerDto) Hibernate.unproxy(workers.getById(id));
+	}
+	
+	public List<WorkerDto> GetWorkersBySpec(String spec, Long f){
 		SpecDto sp = specs.getOneByNameIgnoreCase(spec);
-		return workers.findAllByspec(sp);
+		List<WorkerDto> aaa = workers.findAllByspec(sp);
+		if(f == 1) {
+			Collections.sort(aaa, (o1, o2) -> o1.pkWorker.compareTo(o2.pkWorker));
+		}
+		if(f == 2) {
+			Collections.sort(aaa, (o1, o2) -> o1.fio.compareTo(o2.fio));
+		}
+		return aaa;
+	}
+	
+	public List<WorkerDto> GetWorkersBySpec(Long spec, Long f){
+		SpecDto sp = specs.getById(spec);
+		List<WorkerDto> aaa = workers.findAllByspec(sp);
+		if(f == 1) {
+			Collections.sort(aaa, (o1, o2) -> o1.pkWorker.compareTo(o2.pkWorker));
+		}
+		if(f == 2) {
+			Collections.sort(aaa, (o1, o2) -> o1.fio.compareTo(o2.fio));
+		}
+		return aaa;
+	}
+	
+	public List<WorkerDto> GetWorkersSortedById(){
+		List<WorkerDto> aaa = workers.findAll();
+		Collections.sort(aaa, (o1, o2) -> o1.pkWorker.compareTo(o2.pkWorker));
+		return aaa;
+	}
+	
+	public List<WorkerDto> GetWorkersSortedByFIO(){
+		List<WorkerDto> aaa = workers.findAll();
+		Collections.sort(aaa, (o1, o2) -> o1.fio.compareTo(o2.fio));
+		return aaa;
 	}
 	
 }

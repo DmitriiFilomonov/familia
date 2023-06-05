@@ -40,23 +40,29 @@ public class ClientTypeSVC {
 	
 	@Transactional
 	public int SetType(Long id, String name, Float dis, Long lev, Float spend, Long went, Long time) {
-		ClientTypeDto ty = (ClientTypeDto) Hibernate.unproxy(types.getById(id));
-		if(lev != null) {
-			ClientTypeDto ct = types.getOneBylevel(lev);
-			if(ct == null) ty.level = lev;
-			else return 2;
+		try {
+			ClientTypeDto ty = (ClientTypeDto) Hibernate.unproxy(types.getById(id));
+			if(ty == null) return 2;
+			if(lev != null) {
+				ClientTypeDto ct = types.getOneBylevel(lev);
+				if(ct != null) return 2; 
+			}
+			if(name != null) {
+				ClientTypeDto ct = types.getOneByNameIgnoreCase(name);
+				if(ct == null) ty.name = name;
+				else return 2;
+			}
+			if(lev != null) ty.level = lev;
+			if(dis != null) ty.discount = dis;
+			if(spend != null) ty.spend = spend;
+			if(went != null) ty.went = went;
+			if(time != null) ty.time = time;
+			types.save(ty);
+			return 1;
 		}
-		if(name != null) {
-			ClientTypeDto ct = types.getOneByNameIgnoreCase(name);
-			if(ct == null) ty.name = name;
-			else return 2;
+		catch(Exception ex) {
+			return 2;
 		}
-		if(dis != null) ty.discount = dis / 100;
-		if(spend != null) ty.spend = spend;
-		if(went != null) ty.went = went;
-		if(time != null) ty.time = time;
-		types.save(ty);
-		return 1;
 	}
 	
 	@Transactional

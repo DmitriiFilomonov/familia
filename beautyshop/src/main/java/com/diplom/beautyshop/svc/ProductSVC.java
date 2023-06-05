@@ -89,24 +89,26 @@ public class ProductSVC {
 			throws ParseException {
 		try {
 			ProductDto prod = (ProductDto) Hibernate.unproxy(products.getById(id));
+			if(prod == null) return 2;
 			if(name != null) {
-				if(products.getOneByNameIgnoreCase(name) == null) {
-					prod.name = name;
-				}
-				else return 2;
+				if(products.getOneByNameIgnoreCase(name) != null) return 2;
 			}
-			if(price != null) prod.price = price;
-			if(discountPrice != null) prod.discountPrice = discountPrice;
+			if(type != null) {
+				ProductTypeDto prodType = productTypes.getOneByNameIgnoreCase(type);
+				if(prodType == null) return 2;
+			}
 			if(discountDate != null) {
 				Date d = new SimpleDateFormat("dd-MM-yyyy HH:mm").parse(discountDate);
 				prod.discountDate = d;
 			}
-			if(amount != null) prod.amount = amount;
+			if(name != null) prod.name= name;
 			if(type != null) {
 				ProductTypeDto prodType = productTypes.getOneByNameIgnoreCase(type);
-				if(prodType != null) prod.productType = prodType;
-				else return 2;
+				prod.productType = prodType;
 			}
+			if(price != null) prod.price = price;
+			if(discountPrice != null) prod.discountPrice = discountPrice;
+			if(amount != null) prod.amount = amount;
 			products.save(prod);
 			return 1;
 		}

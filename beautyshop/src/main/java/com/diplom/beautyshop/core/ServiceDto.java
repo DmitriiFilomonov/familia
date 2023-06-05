@@ -72,7 +72,7 @@ public class ServiceDto implements Serializable {
 	}
 	
 	public void SetDiscount(Float discount) {
-		this.discountPrice = discount / 100;
+		if(discount != null) this.discountPrice = discount / 100;
 	}
 	
 	public void SetDiscountDate(Date dat) {
@@ -94,8 +94,10 @@ public class ServiceDto implements Serializable {
 	public ServiceDto(String name, Long time, Float money, Float notMoney, Date dat, String sex, ServiceTypeDto type, SpecDto sp) {
 		this.name = name;
 		this.length = time;
-		this.price = money;
-		this.discountPrice = notMoney / 100;
+		if(money != null) this.price = money;
+		else this.price = (float) 0;
+		if(notMoney != null) this.discountPrice = notMoney / 100;
+		else this.discountPrice = (float) 0;
 		this.discountDate = dat;
 		this.sex = sex;
 		this.serviceType = type;

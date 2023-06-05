@@ -57,7 +57,7 @@ public class RecordDto implements Serializable {
 		this.worker = worker;
 	}
 	
-	protected RecordDto() {
+	public RecordDto() {
 		
 	}
 	

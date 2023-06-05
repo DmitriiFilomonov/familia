@@ -28,8 +28,6 @@ public class ClientDto implements Serializable {
 	@Column
 	public String fio;
 	
-	//Отзыв
-	
 	@ManyToOne
 	@JoinColumn(name = "ClientType")
 	public ClientTypeDto clientType;

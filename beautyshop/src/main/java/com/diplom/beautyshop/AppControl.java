@@ -11,16 +11,27 @@ import java.nio.file.spi.FileTypeDetector;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,13 +68,22 @@ import com.diplom.beautyshop.svc.SpecSVC;
 import com.diplom.beautyshop.svc.WorkerSVC;
 import com.google.gson.Gson;
 
+import io.jsonwebtoken.Jwts;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.servlet.http.HttpServlet;
 
 @Controller
+@RequestMapping(value = "/app")
 public class AppControl {
 	
 	@Autowired
 	private HttpServlet request;
+	
+	@Autowired
+	private BCryptPasswordEncoder encoder;
+	
+	@Autowired
+	private JwtTokenProvider tokenProv; 
 
 	@Autowired
 	private ClientSVC clientSVC;
@@ -104,6 +124,8 @@ public class AppControl {
 	@Autowired
 	private ProductTypeSVC productTypeSVC;
 	
+	
+	
 	@RequestMapping(method=RequestMethod.GET, value = "/hhru")
 	public String Index() {
 		return "index.html";
@@ -127,88 +149,152 @@ public class AppControl {
 		return ResponseEntity.ok().contentType(MediaType.valueOf(in.toURL().openConnection().getContentType())).body(Files.readAllBytes(in.toPath()));
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addCheck")
-	public void AddCheck(@RequestParam(name="date") String date, @RequestParam(name="state") Long state, @RequestParam(name="discount") Float dis, 
-			@RequestParam(name="client") String client, @RequestParam(name="worker") String worker) throws ParseException {
-		checkSVC.AddCheck(date, state, dis, client, worker);
-	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/setCheck")
-	public void SetCheck(@RequestParam(name="id") Long id, @RequestParam(name="date") String date, @RequestParam(name="state") Long state, 
-			@RequestParam(name="discount") Float dis, @RequestParam(name="client") String client, 
-			@RequestParam(name="worker") String worker) throws ParseException {
-		checkSVC.SetCheck(id, date, state, dis, client, worker);
-	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/delCheck")
-	public void DelCheck(@RequestParam(name="id") Long id) throws ParseException {
-		checkSVC.DelCheck(id);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/checks")
-	public List<CheckDto> GetChecks() {
-		return checkSVC.GetChecks();
+	@RequestMapping(method=RequestMethod.GET, value = "/addCheck", produces = {"application/json"})
+	public String AddCheck(@RequestParam(name="date", required=true) String date, @RequestParam(name="state", required=true) Long state, 
+			@RequestParam(name="discount", required=false) Float dis, @RequestParam(name="client", required=true) String client, 
+			@RequestParam(name="worker", required=true) String worker) throws ParseException {
+		int res = checkSVC.AddCheck(date, state, dis, client, worker);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/checksByClient")
-	public List<CheckDto> GetChecksByClient(@RequestParam(name="name") String name) {
-		return checkSVC.GetChecksByClient(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/setCheck", produces = {"application/json"})
+	public String SetCheck(@RequestParam(name="id", required=true) Long id, @RequestParam(name="date", required=false) String date, 
+			@RequestParam(name="state", required=false) Long state, @RequestParam(name="discount", required=false) Float dis, 
+			@RequestParam(name="client", required=false) String client, @RequestParam(name="worker", required=false) String worker) throws ParseException {
+		int res = checkSVC.SetCheck(id, date, state, dis, client, worker);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/checksByWorker")
-	public List<CheckDto> GetChecksByWorker(@RequestParam(name="name") String name) {
-		return checkSVC.GetChecksByWorker(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/delCheck", produces = {"application/json"})
+	public String DelCheck(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = checkSVC.DelCheck(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/check")
-	public CheckDto GetCheck(@RequestParam(name="id") Long id) {
-		return checkSVC.GetCheck(id);
+	@RequestMapping(method=RequestMethod.GET, value = "/checks", produces = {"application/json"})
+	public String GetChecks() {
+		List<CheckDto> aaa =  checkSVC.GetChecks();
+		JSONArray json = new JSONArray();
+		for(CheckDto a : aaa) {
+			json.put(CreateCheckJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addServ")
-	public void AddService(@RequestParam(name="name") String name, @RequestParam(name="time", required=false) Long time, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/checksByClient", produces = {"application/json"})
+	public String GetChecksByClient(@RequestParam(name="name", required=true) String name) {
+		List<CheckDto> aaa = checkSVC.GetChecksByClient(name);
+		JSONArray json = new JSONArray();
+		for(CheckDto a : aaa) {
+			json.put(CreateCheckJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/checksByWorker", produces = {"application/json"})
+	public String GetChecksByWorker(@RequestParam(name="name", required=true) String name) {
+		List<CheckDto> aaa = checkSVC.GetChecksByWorker(name);
+		JSONArray json = new JSONArray();
+		for(CheckDto a : aaa) {
+			json.put(CreateCheckJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/check", produces = {"application/json"})
+	public String GetCheck(@RequestParam(name="id", required=true) Long id) {
+		CheckDto aaa = checkSVC.GetCheck(id);
+		if(aaa != null) {
+			JSONObject js = CreateCheckJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addServ", produces = {"application/json"})
+	public String AddService(@RequestParam(name="name", required=true) String name, @RequestParam(name="time", required=false) Long time, 
 			@RequestParam(name="price", required=false) Float price, @RequestParam(name="discount", required=false) Float discount, 
 			@RequestParam(name="discount_end", required=false) String dat, @RequestParam(name="sex", required=false) String sex, 
 			@RequestParam(name="type", required=false) String type, @RequestParam(name="spec", required=false) String spec) throws ParseException {
-		serviceSVC.AddService(name, time, price, discount, dat, sex, type, spec);
+		int res = serviceSVC.AddService(name, time, price, discount, dat, sex, type, spec);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addServWithType")
-	public void AddServiceWithType(@RequestParam(name="name") String name, @RequestParam(name="time", required=false) Long time, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addServWithType", produces = {"application/json"})
+	public String AddServiceWithType(@RequestParam(name="name", required=true) String name, @RequestParam(name="time", required=false) Long time, 
 			@RequestParam(name="price", required=false) Float price, @RequestParam(name="discount", required=false) Float discount, 
 			@RequestParam(name="discount_end", required=false) String dat, @RequestParam(name="sex", required=false) String sex, 
 			@RequestParam(name="type", required=false) String type, @RequestParam(name="spec", required=false) String spec) throws ParseException {
-		serviceSVC.AddServiceWithType(name, time, price, discount, dat, sex, type, spec);
+		int res = serviceSVC.AddServiceWithType(name, time, price, discount, dat, sex, type, spec);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addServWithSpec")
-	public void AddServiceWithSpec(@RequestParam(name="name") String name, @RequestParam(name="time", required=false) Long time, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addServWithSpec", produces = {"application/json"})
+	public String AddServiceWithSpec(@RequestParam(name="name", required=true) String name, @RequestParam(name="time", required=false) Long time, 
 			@RequestParam(name="price", required=false) Float price, @RequestParam(name="discount", required=false) Float discount, 
 			@RequestParam(name="discount_end", required=false) String dat, @RequestParam(name="sex", required=false) String sex, 
 			@RequestParam(name="type", required=false) String type, @RequestParam(name="spec", required=false) String spec) throws ParseException {
-		serviceSVC.AddServiceWithSpec(name, time, price, discount, dat, sex, type, spec);
+		int res = serviceSVC.AddServiceWithSpec(name, time, price, discount, dat, sex, type, spec);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/setServ")
-	public void SetService(@RequestParam(name="id") Long id, @RequestParam(name="name", required=false) String name, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setServ", produces = {"application/json"})
+	public String SetService(@RequestParam(name="id", required=true) Long id, @RequestParam(name="name", required=false) String name, 
 			@RequestParam(name="time", required=false) Long time, @RequestParam(name="price", required=false) Float price, 
 			@RequestParam(name="discount", required=false) Float discount, @RequestParam(name="date", required=false) String dat, 
 			@RequestParam(name="sex", required=false) String sex, @RequestParam(name="type", required=false) String type,
 			@RequestParam(name="spec", required=false) String spec) throws ParseException {
-		serviceSVC.SetService(id, name, time, price, discount, dat, sex, type, spec);
+		int res = serviceSVC.SetService(id, name, time, price, discount, dat, sex, type, spec);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/delServ")
-	public void DelService(@RequestParam(name="name") String name) throws ParseException {
-		serviceSVC.DelService(name);
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delServ", produces = {"application/json"})
+	public String DelService(@RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = serviceSVC.DelService(name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/updateServices", produces = {"application/json"})
+	public String UpdateServices() throws ParseException {
+		int res = serviceSVC.UpdateService();
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
 	public JSONObject CreateCheckJSON(CheckDto obj) {
@@ -246,9 +332,14 @@ public class AppControl {
 		js.put("email", cli.email);
 		js.put("number", cli.number);
 		JSONObject j = new JSONObject();
-		j.put("pkClientType", cli.clientType.pkClientType);
-		j.put("name", cli.clientType.name);
-		js.put("type", j);
+		if(cli.clientType != null) {
+			j.put("pkClientType", cli.clientType.pkClientType);
+			j.put("name", cli.clientType.name);
+			js.put("type", j);
+		}
+		else {
+			js.put("type", "null");
+		}
 		return js;
 	}
 	
@@ -312,11 +403,11 @@ public class AppControl {
 		j.put("pkService", rec.service.pkService);
 		j.put("name", rec.service.name);
 		js.put("service", j);
-		j.clear();
+		j = new JSONObject();
 		j.put("pkWorker", rec.worker.pkWorker);
 		j.put("fio", rec.worker.fio);
 		js.put("worker", j);
-		j.clear();
+		j = new JSONObject();
 		j.put("pkClient", rec.client.pkClient);
 		j.put("fio", rec.client.fio);
 		js.put("client", j);
@@ -355,11 +446,11 @@ public class AppControl {
 			js.put("serviceType", j);
 		}
 		else js.put("serviceType", "null");
-		j.clear();
+		JSONObject j1 = new JSONObject();
 		if(serv.spec != null) {
-			j.put("pkSpec", serv.spec.pkSpec);
-			j.put("name", serv.spec.name);
-			js.put("spec", j);
+			j1.put("pkSpec", serv.spec.pkSpec);
+			j1.put("name", serv.spec.name);
+			js.put("spec", j1);
 		}
 		else js.put("spec", "null");
 		return js;
@@ -379,7 +470,7 @@ public class AppControl {
 		JSONArray jsArr = new JSONArray();
 		JSONObject j = new JSONObject();
 		for(ServiceDto serv : obj.servs) {
-			j.clear();
+			j = new JSONObject();
 			j.put("pkService", serv.pkService);
 			j.put("name", serv.name);
 			jsArr.put(j);
@@ -407,194 +498,428 @@ public class AppControl {
 		return js;
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/servs")
-	public List<ServiceDto> GetServices() {
-		return serviceSVC.GetServices();
+	@RequestMapping(method=RequestMethod.GET, value = "/servs", produces = {"application/json"})
+	public String GetServices(@RequestParam(name="f", required=true) Long f) {
+		List<ServiceDto> aaa = serviceSVC.GetServices(f);
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/servsBySpec")
-	public List<ServiceDto> GetServicesBySpec(@RequestParam(name="spec") String spec) {
-		return serviceSVC.GetServicesBySpec(spec);
+	@RequestMapping(method=RequestMethod.GET, value = "/servsBySpec", produces = {"application/json"})
+	public String GetServicesBySpec(@RequestParam(name="spec", required=true) String spec, @RequestParam(name="f", required=true) Long f) {
+		List<ServiceDto> aaa = serviceSVC.GetServicesBySpec(spec, f);
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/servsByType")
-	public List<ServiceDto> GetServicesByType(@RequestParam(name="type") String type) {
-		return serviceSVC.GetServicesByType(type);
+	@RequestMapping(method=RequestMethod.GET, value = "/servsBySpecId", produces = {"application/json"})
+	public String GetServicesBySpecId(@RequestParam(name="id", required=true) Long spec, @RequestParam(name="f", required=true) Long f) {
+		List<ServiceDto> aaa = serviceSVC.GetServicesBySpec(spec, f);
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/serv")
-	public ServiceDto GetService(@RequestParam(name="name") String name) {
-		return serviceSVC.GetService(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/servsSortedById", produces = {"application/json"})
+	public String GetServicesSortedById() {
+		List<ServiceDto> aaa = serviceSVC.GetServicesSortedById();
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addSpec")
-	public void AddSpec(@RequestParam(name="name") String name) throws ParseException {
-		specSVC.AddSpec(name);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setSpec")
-	public void SetSpec(@RequestParam(name="id") Long id, @RequestParam(name="name") String name) throws ParseException {
-		specSVC.SetSpec(id, name);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/delSpec")
-	public void DelSpec(@RequestParam(name="name") String name) throws ParseException {
-		specSVC.DelSpec(name);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/specs")
-	public List<SpecDto> GetSpecs() {
+	@RequestMapping(method=RequestMethod.GET, value = "/servsByType", produces = {"application/json"})
+	public String GetServicesByType(@RequestParam(name="type", required=true) String type, @RequestParam(name="f", required=true) Long f) {
+		List<ServiceDto> aaa = serviceSVC.GetServicesByType(type, f);
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/servsByTypeId", produces = {"application/json"})
+	public String GetServicesByTypeId(@RequestParam(name="id", required=true) Long type, @RequestParam(name="f", required=true) Long f) {
+		List<ServiceDto> aaa = serviceSVC.GetServicesByType(type, f);
+		JSONArray json = new JSONArray();
+		for(ServiceDto a : aaa) {
+			json.put(CreateServiceJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/serv", produces = {"application/json"})
+	public String GetService(@RequestParam(name="name", required=true) String name) {
+		ServiceDto aaa = serviceSVC.GetService(name);
+		if(aaa != null) {
+			JSONObject js = CreateServiceJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/servId", produces = {"application/json"})
+	public String GetServiceId(@RequestParam(name="id", required=true) Long name) {
+		ServiceDto aaa = serviceSVC.GetService(name);
+		if(aaa != null) {
+			JSONObject js = CreateServiceJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addSpec", produces = {"application/json"})
+	public String AddSpec(@RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = specSVC.AddSpec(name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setSpec", produces = {"application/json"})
+	public String SetSpec(@RequestParam(name="id", required=true) Long id, @RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = specSVC.SetSpec(id, name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delSpec", produces = {"application/json"})
+	public String DelSpec(@RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = specSVC.DelSpec(name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/specs", produces = {"application/json"})
+	public String GetSpecs() {
 		List<SpecDto> aaa = specSVC.GetSpecs();
-		return aaa;
+		JSONArray json = new JSONArray();
+		for(SpecDto a : aaa) {
+			json.put(CreateSpecJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/spec")
-	public SpecDto GetSpec(@RequestParam(name="name") String name) {
-		return specSVC.GetSpec(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/spec", produces = {"application/json"})
+	public String GetSpec(@RequestParam(name="name") String name) {
+		SpecDto aaa = specSVC.GetSpec(name);
+		if(aaa != null) {
+			JSONObject js = CreateSpecJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addServType")
-	public void AddServiceType(@RequestParam(name="name") String name) throws ParseException {
-		serviceTypeSVC.AddType(name);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setServType")
-	public void SetServiceType(@RequestParam(name="id") Long id, @RequestParam(name="name", required=false) String name) throws ParseException {
-		serviceTypeSVC.SetType(id, name);
-	}
-	
-	//Если нет сервисов
-	@RequestMapping(method=RequestMethod.GET, value = "/delServType")
-	public void DelServiceType(@RequestParam(name="name") String name) throws ParseException {
-		serviceTypeSVC.DelType(name);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/servTypes")
-	public List<ServiceTypeDto> GetServiceTypes() {
+	@RequestMapping(method=RequestMethod.GET, value = "/addServType", produces = {"application/json"})
+	public String AddServiceType(@RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = serviceTypeSVC.AddType(name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setServType", produces = {"application/json"})
+	public String SetServiceType(@RequestParam(name="id", required=true) Long id, @RequestParam(name="name", required=false) String name) throws ParseException {
+		int res = serviceTypeSVC.SetType(id, name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delServType", produces = {"application/json"})
+	public String DelServiceType(@RequestParam(name="name", required=true) String name) throws ParseException {
+		int res = serviceTypeSVC.DelType(name);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/servTypes", produces = {"application/json"})
+	public String GetServiceTypes() {
 		List<ServiceTypeDto> aaa = serviceTypeSVC.GetTypes();
-		return aaa;
+		JSONArray json = new JSONArray();
+		for(ServiceTypeDto a : aaa) {
+			json.put(CreateServiceTypeJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/servType")
-	public ServiceTypeDto GetServiceType(@RequestParam(name="name") String name) {
+	@RequestMapping(method=RequestMethod.GET, value = "/servType", produces = {"application/json"})
+	public String GetServiceType(@RequestParam(name="name", required=true) String name) {
 		ServiceTypeDto aaa = serviceTypeSVC.GetType(name);
-		return aaa;
+		if(aaa != null) {
+			JSONObject js = CreateServiceTypeJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
 	}
 	
-	@RequestMapping(method=RequestMethod.POST, value = "/addWorker")
-	public void AddWorker(@RequestParam(name="name") String name, @RequestParam(name="time", required=false) Long time, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addWorker", produces = {"application/json"})
+	public String AddWorker(@RequestParam(name="name", required=true) String name, @RequestParam(name="time", required=false) Long time, 
 			@RequestParam(name="money", required=false) Float money, @RequestParam(name="notmoney", required=false) Float notMoney, 
 			@RequestParam(name="prof", required=false) String prof, @RequestParam(name="foto", required=false) MultipartFile foto, 
+			@RequestParam(name="login", required=false) String login, @RequestParam(name="pass", required=false) String pass,
 			@RequestParam(name="spec", required=false) String spec) throws ParseException, IllegalStateException, IOException {
 	    String aaa = foto.getOriginalFilename();
-	    foto.transferTo(new File("/img/" + aaa));
-		workerSVC.AddWorker(name, time, money, notMoney, prof, aaa, spec);
+		String encodedPass = encoder.encode(pass);
+		int res = workerSVC.AddWorker(name, time, money, notMoney, prof, aaa,login,encodedPass, spec);
+		if(res == 1) {
+			File dir = new File("/workersImg");
+			if(!dir.exists()) {
+				dir.mkdir();
+			}
+		    foto.transferTo(new File("/workersImg/" + aaa));
+		}
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.POST, value = "/addWorkerWithSpec")
-	public void AddWorkerWithSpec(@RequestParam(name="name") String name, @RequestParam(name="time", required=false) Long time, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/addWorkerWithSpec", produces = {"application/json"})
+	public String AddWorkerWithSpec(@RequestParam(name="name", required=true) String name, @RequestParam(name="time", required=false) Long time, 
 			@RequestParam(name="money", required=false) Float money, @RequestParam(name="notmoney", required=false) Float notMoney, 
 			@RequestParam(name="prof", required=false) String prof, @RequestParam(name="foto", required=false) MultipartFile foto, 
+			@RequestParam(name="login", required=false) String login, @RequestParam(name="pass", required=false) String pass,
 			@RequestParam(name="spec", required=false) String spec) throws ParseException, IllegalStateException, IOException {
 	    String aaa = foto.getOriginalFilename();
-	    foto.transferTo(new File("/img/" + aaa));
-		workerSVC.AddWorkerWithSpec(name, time, money, notMoney, prof, aaa, spec);
+		int res = workerSVC.AddWorkerWithSpec(name, time, money, notMoney, prof, aaa, login, pass, spec);
+		if(res == 1) {
+			File dir = new File("/workersImg");
+			if(!dir.exists()) {
+				dir.mkdir();
+			}
+		    foto.transferTo(new File("/workersImg/" + aaa));
+		}
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/setWorker")
-	public void SetWorker(@RequestParam(name="id") Long id, @RequestParam(name="name", required=false) String name, 
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setWorker", produces = {"application/json"})
+	public String SetWorker(@RequestParam(name="id", required=true) Long id, @RequestParam(name="name", required=false) String name, 
 			@RequestParam(name="time", required=false) Long time, @RequestParam(name="money", required=false) Float money, 
 			@RequestParam(name="notmoney", required=false) Float notMoney, @RequestParam(name="prof", required=false) String prof, 
-			@RequestParam(name="foto", required=false) String foto, @RequestParam(name="spec", required=false) String spec) throws ParseException {
-		workerSVC.SetWorker(id, name, time, money, notMoney, prof, foto, spec);
+			@RequestParam(name="login", required=false) String login, @RequestParam(name="pass", required=false) String pass,
+			@RequestParam(name="foto", required=false) MultipartFile foto, @RequestParam(name="spec", required=false) String spec) throws ParseException,
+	IllegalStateException, IOException {
+		String aaa = null;
+		if(foto != null) aaa = foto.getOriginalFilename();
+		String lastFoto = workerSVC.GetWorker(id).foto;
+		int res = workerSVC.SetWorker(id, name, time, money, notMoney, prof, aaa, login, pass, spec);
+		if(res == 1) {
+			File dir = new File("/workersImg");
+			if(!dir.exists()) {
+				dir.mkdir();
+			}
+			new File("/workersImg/" + lastFoto).delete();
+		    foto.transferTo(new File("/workersImg/" + aaa));
+		}
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/delWorker")
-	public void DelWorker(@RequestParam(name="id") Long id) throws ParseException {
-		workerSVC.DelWorker(id);
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delWorker", produces = {"application/json"})
+	public String DelWorker(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		String lastFoto = workerSVC.GetWorker(id).foto;
+		int res = workerSVC.DelWorker(id);
+		if(res == 1) {
+			new File("/workersImg/" + lastFoto).delete();
+		}
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
 	@RequestMapping(method=RequestMethod.GET, value = "/workers", produces = {"application/json"})
-	public String GetWorkers() {
-		JSONObject j = new JSONObject();
-		j.put("name", "fff");		
-		return j.toString();
-		//return workerSVC.GetWorkers();
+	public String GetWorkers(@RequestParam(name="f") Long f) {
+		List<WorkerDto> aaa = workerSVC.GetWorkers(f);
+		JSONArray json = new JSONArray();
+		for(WorkerDto a : aaa) {
+			json.put(CreateWorkerJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/workersBySpec")
-	public List<WorkerDto> GetWorkersBySpec(@RequestParam(name="spec") String spec) {
-		return workerSVC.GetWorkersBySpec(spec);
+	@RequestMapping(method=RequestMethod.GET, value = "/workersBySpec", produces = {"application/json"})
+	public String GetWorkersBySpec(@RequestParam(name="spec") String spec, @RequestParam(name="f") Long f) {
+		List<WorkerDto> aaa = workerSVC.GetWorkersBySpec(spec, f);
+		JSONArray json = new JSONArray();
+		for(WorkerDto a : aaa) {
+			json.put(CreateWorkerJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/worker")
-	public WorkerDto GetWorker(@RequestParam(name="name") String name) {
-		return workerSVC.GetWorker(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/workersBySpecId", produces = {"application/json"})
+	public String GetWorkersBySpecId(@RequestParam(name="id") Long spec, @RequestParam(name="f") Long f) {
+		List<WorkerDto> aaa = workerSVC.GetWorkersBySpec(spec, f);
+		JSONArray json = new JSONArray();
+		for(WorkerDto a : aaa) {
+			json.put(CreateWorkerJSON(a));
+		}
+		return json.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addClient")
-	public void AddClient(@RequestParam(name="email") String email, @RequestParam(name="phone") String num, @RequestParam(name="name") String name, 
-			@RequestParam(name="type") String type) throws ParseException {
-		clientSVC.AddClient(email, num, name, type);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setClient")
-	public void SetClient(@RequestParam(name="id") Long id, @RequestParam(name="email") String email, @RequestParam(name="phone") String num, 
-			@RequestParam(name="name") String name, @RequestParam(name="type") String type) throws ParseException {
-		clientSVC.SetClient(id, email, num, name, type);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/delClient")
-	public void DelClient(@RequestParam(name="id") Long id) throws ParseException {
-		clientSVC.DelClient(id);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/updateClient")
-	public void UpClient(@RequestParam(name="id") Long id) throws ParseException {
-		clientSVC.UpdateType(id);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/clients")
-	public List<ClientDto> GetClients() {
-		return clientSVC.GetClients();
+	@RequestMapping(method=RequestMethod.GET, value = "/worker", produces = {"application/json"})
+	public String GetWorker(@RequestParam(name="name") String name) {
+		WorkerDto aaa = workerSVC.GetWorker(name);
+		if(aaa != null) {
+				//if(tokenProv.getUsername(token).equals(aaa.login)) {
+					JSONObject js = CreateWorkerJSON(aaa);
+					return js.toString();
+				//}
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/client")
-	public ClientDto GetClient(@RequestParam(name="name") String name) {
-		return clientSVC.GetClient(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/workerId", produces = {"application/json"})
+	public String GetWorkerId(@RequestParam(name="id") Long name) {
+		WorkerDto aaa = workerSVC.GetWorker(name);
+		if(aaa != null) {
+			JSONObject js = CreateWorkerJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/clientsByType")
-	public List<ClientDto> GetClientsByType(@RequestParam(name="type") String type) {
-		return clientSVC.GetClientsByType(type);
+	@RequestMapping(method=RequestMethod.GET, value = "/addClient", produces = {"application/json"})
+	public String AddClient(@RequestParam(name="email", required=false) String email, @RequestParam(name="phone", required=false) String num, 
+			@RequestParam(name="name", required=true) String name, @RequestParam(name="type", required=false) String type) throws ParseException {
+		int res = clientSVC.AddClient(email, num, name, type);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setClient", produces = {"application/json"})
+	public String SetClient(@RequestParam(name="id", required=true) Long id, @RequestParam(name="email", required=false) String email, 
+			@RequestParam(name="phone", required=false) String num, @RequestParam(name="name", required=false) String name, 
+			@RequestParam(name="type", required=false) String type) throws ParseException {
+		int res = clientSVC.SetClient(id, email, num, name, type);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delClient", produces = {"application/json"})
+	public String DelClient(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = clientSVC.DelClient(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/updateClient", produces = {"application/json"})
+	public String UpClient(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = clientSVC.UpdateType(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/clients", produces = {"application/json"})
+	public String GetClients() {
+		List<ClientDto> aaa = clientSVC.GetClients();
+		JSONArray json = new JSONArray();
+		for(ClientDto a : aaa) {
+			json.put(CreateClientJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/client", produces = {"application/json"})
+	public String GetClient(@RequestParam(name="name", required=true) String name) {
+		ClientDto aaa = clientSVC.GetClient(name);
+		if(aaa != null) {
+			JSONObject js = CreateClientJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/clientsByType", produces = {"application/json"})
+	public String GetClientsByType(@RequestParam(name="type", required=true) String type) {
+		List<ClientDto> aaa = clientSVC.GetClientsByType(type);
+		JSONArray json = new JSONArray();
+		for(ClientDto a : aaa) {
+			json.put(CreateClientJSON(a));
+		}
+		return json.toString();
 	}
 	
 	@ResponseBody
@@ -655,47 +980,81 @@ public class AppControl {
 		}
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addProductInCheck")
-	public void AddProductInCheck(@RequestParam(name="name") String name, @RequestParam(name="price") Float price, @RequestParam(name="amount") Long amount, 
-			@RequestParam(name="check") Long check) throws ParseException {
-		productInCheckSVC.AddProduct(name, price, amount, check);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setProductInCheck")
-	public void SetProductInCheck(@RequestParam(name="id") Long id, @RequestParam(name="name") String name, @RequestParam(name="price") Float price, 
-			@RequestParam(name="amount") Long amount, @RequestParam(name="check") Long check) throws ParseException {
-		productInCheckSVC.SetProduct(id, name, price, amount, check);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/delProductInCheck")
-	public void DelProductInCheck(@RequestParam(name="id") Long id) throws ParseException {
-		productInCheckSVC.DelProduct(id);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/productsInCheck")
-	public List<ProductInCheckDto> GetProductsInCheck() {
-		List<RecordDto> aaa = recordSVC.GetRecords();
-		JSONArray json = new JSONArray();
-		for(RecordDto a : aaa) {
-			json.put(CreateRecordJSON(a));
-		}
-		//return json.toString();
-		return productInCheckSVC.GetProducts();
+	@RequestMapping(method=RequestMethod.GET, value = "/addProductInCheck", produces = {"application/json"})
+	public String AddProductInCheck(@RequestParam(name="name", required=true) String name, 
+			@RequestParam(name="amount", required=true) Long amount, @RequestParam(name="check", required=true) Long check) throws ParseException {
+		int res = productInCheckSVC.AddProduct(name, amount, check);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/productInCheck")
-	public ProductInCheckDto GetProductInCheck(@RequestParam(name="id") Long id) {
-		List<RecordDto> aaa = recordSVC.GetRecords();
+	@RequestMapping(method=RequestMethod.GET, value = "/setProductInCheck", produces = {"application/json"})
+	public String SetProductInCheck(@RequestParam(name="id", required=true) Long id, @RequestParam(name="name", required=false) String name, 
+			@RequestParam(name="price", required=false) Float price, @RequestParam(name="amount", required=false) Long amount, 
+			@RequestParam(name="check", required=false) Long check) throws ParseException {
+		int res = productInCheckSVC.SetProduct(id, name, price, amount, check);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/updateProductInCheck", produces = {"application/json"})
+	public String UpdateProductInCheck(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = productInCheckSVC.UpdatePrice(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delProductInCheck", produces = {"application/json"})
+	public String DelProductInCheck(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = productInCheckSVC.DelProduct(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/productsInCheck", produces = {"application/json"})
+	public String GetProductsInCheck() {
+		List<ProductInCheckDto> aaa = productInCheckSVC.GetProducts();
 		JSONArray json = new JSONArray();
-		for(RecordDto a : aaa) {
-			json.put(CreateRecordJSON(a));
+		for(ProductInCheckDto a : aaa) {
+			json.put(CreateProductInCheckJSON(a));
 		}
-		//return json.toString();
-		return productInCheckSVC.GetProduct(id);
+		return json.toString();
+	}
+	
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/productsInCheckByCheck", produces = {"application/json"})
+	public String GetProductsInCheckByCheck(@RequestParam(name="id", required=true) Long id) {
+		List<ProductInCheckDto> aaa = productInCheckSVC.GetProductsByCheck(id);
+		JSONArray json = new JSONArray();
+		for(ProductInCheckDto a : aaa) {
+			json.put(CreateProductInCheckJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/productInCheck", produces = {"application/json"})
+	public String GetProductInCheck(@RequestParam(name="id", required=true) Long id) {
+		ProductInCheckDto aaa = productInCheckSVC.GetProduct(id);
+		if(aaa != null) {
+			JSONObject js = CreateProductInCheckJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", 2);
+			return js.toString();
+		}
 	}
 	
 	@ResponseBody
@@ -848,27 +1207,48 @@ public class AppControl {
 		}
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addRecord")
-	public void AddRecord(@RequestParam(name="date") String dat, @RequestParam(name="serv") String serv, @RequestParam(name="client") String cli, 
-			@RequestParam(name="worker") String wor) throws ParseException {
-		recordSVC.AddRecord(dat, serv, cli, wor);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setRecord")
-	public void SetRecord(@RequestParam(name="id") Long id, @RequestParam(name="date", required=false) String dat, @RequestParam(name="state") Long state, 
-			@RequestParam(name="price") Float price, @RequestParam(name="serv", required=false) String serv, 
-			@RequestParam(name="client", required=false) String cli, @RequestParam(name="worker", required=false) String wor) throws ParseException {
-		recordSVC.SetRecord(id, dat, state, price, serv, cli, wor);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/delRecord")
-	public void DelRecord(@RequestParam(name="id") Long id) throws ParseException {
-		recordSVC.DelRecord(id);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/records")
+	@RequestMapping(method=RequestMethod.GET, value = "/addRecord", produces = {"application/json"})
+	public String AddRecord(@RequestParam(name="date", required=true) String dat, @RequestParam(name="serv", required=true) String serv, 
+			@RequestParam(name="client", required=true) String cli, @RequestParam(name="worker", required=true) String wor) throws ParseException {
+		int res = recordSVC.AddRecord(dat, serv, cli, wor);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/updateRecord", produces = {"application/json"})
+	public String UpdateRecord(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = recordSVC.UpdatePrice(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/setRecord", produces = {"application/json"})
+	public String SetRecord(@RequestParam(name="id", required=true) Long id, @RequestParam(name="date", required=false) String dat, 
+			@RequestParam(name="state", required=false) Long state, @RequestParam(name="price", required=false) Float price, 
+			@RequestParam(name="serv", required=false) String serv, @RequestParam(name="client", required=false) String cli, 
+			@RequestParam(name="worker", required=false) String wor) throws ParseException {
+		int res = recordSVC.SetRecord(id, dat, state, price, serv, cli, wor);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/delRecord", produces = {"application/json"})
+	public String DelRecord(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = recordSVC.DelRecord(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/records", produces = {"application/json"})
 	public String GetRecords() {
 		List<RecordDto> aaa = recordSVC.GetRecords();
 		JSONArray json = new JSONArray();
@@ -878,19 +1258,24 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/record")
-	public String GetRecord(@RequestParam(name="id") Long id) {
-		RecordDto aaa = recordSVC.GetRecord(id);
-		JSONObject json = CreateRecordJSON(aaa);
-		return json.toString();
+	@RequestMapping(method=RequestMethod.GET, value = "/record", produces = {"application/json"})
+	public String GetRecord(@RequestParam(name="id", required=true) Long id) {
+		RecordDto aaa = (RecordDto) Hibernate.unproxy(recordSVC.GetRecord(id));
+		if(aaa != null) {
+			JSONObject js = CreateRecordJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", "2");
+			return js.toString();
+		}
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/recordsByWorker")
-	public String GetRecordsByWorker(@RequestParam(name="name") String name) {
+	@RequestMapping(method=RequestMethod.GET, value = "/recordsByWorker", produces = {"application/json"})
+	public String GetRecordsByWorker(@RequestParam(name="name", required=true) String name) {
 		List<RecordDto> aaa = recordSVC.GetRecordsByWorker(name);
 		JSONArray json = new JSONArray();
 		for(RecordDto a : aaa) {
@@ -899,10 +1284,9 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/recordsByService")
-	public String GetRecordsByService(@RequestParam(name="name") String name) {
+	@RequestMapping(method=RequestMethod.GET, value = "/recordsByService", produces = {"application/json"})
+	public String GetRecordsByService(@RequestParam(name="name", required=true) String name) {
 		List<RecordDto> aaa = recordSVC.GetRecordsByService(name);
 		JSONArray json = new JSONArray();
 		for(RecordDto a : aaa) {
@@ -911,10 +1295,9 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/recordsByClient")
-	public String GetRecordsByClient(@RequestParam(name="name") String name) {
+	@RequestMapping(method=RequestMethod.GET, value = "/recordsByClient", produces = {"application/json"})
+	public String GetRecordsByClient(@RequestParam(name="name", required=true) String name) {
 		List<RecordDto> aaa = recordSVC.GetRecordsByClient(name);
 		JSONArray json = new JSONArray();
 		for(RecordDto a : aaa) {
@@ -923,10 +1306,10 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/recordsByDate")
-	public String GetRecordsByDate(@RequestParam(name="date1") String p1, @RequestParam(name="date2") String p2) throws ParseException {
+	@RequestMapping(method=RequestMethod.GET, value = "/recordsByDate", produces = {"application/json"})
+	public String GetRecordsByDate(@RequestParam(name="date1", required=true) String p1, @RequestParam(name="date2", required=true) String p2) 
+			throws ParseException {
 		List<RecordDto> aaa = recordSVC.GetRecordsByDate(p1, p2);
 		JSONArray json = new JSONArray();
 		for(RecordDto a : aaa) {
@@ -935,11 +1318,10 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/recordsByDateAndWorker")
-	public String GetRecordsByDateAndWorker(@RequestParam(name="date1") String p1, @RequestParam(name="date2") String p2,
-			@RequestParam(name="name") String name) throws ParseException {
+	@RequestMapping(method=RequestMethod.GET, value = "/recordsByDateAndWorker", produces = {"application/json"})
+	public String GetRecordsByDateAndWorker(@RequestParam(name="date1", required=true) String p1, @RequestParam(name="date2", required=true) String p2,
+			@RequestParam(name="name", required=true) String name) throws ParseException {
 		List<RecordDto> aaa = recordSVC.GetRecordsByDateAndWorker(p1, p2, name);
 		JSONArray json = new JSONArray();
 		for(RecordDto a : aaa) {
@@ -948,49 +1330,94 @@ public class AppControl {
 		return json.toString();
 	}
 	
-	@RequestMapping(method=RequestMethod.GET, value = "/addReview")
-	public void AddReview(@RequestParam(name="score") Long score, @RequestParam(name="comment") String comment, @RequestParam(name="client") String client, 
-			@RequestParam(name="service") String serv) throws ParseException {
-		reviewSVC.AddReview(score, comment, client, serv);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/setReview")
-	public void SetReview(@RequestParam(name="id") Long id, @RequestParam(name="score") Long score, @RequestParam(name="comment") String comment, 
-			@RequestParam(name="client") String client, @RequestParam(name="service") String serv) throws ParseException {
-		reviewSVC.SetReview(id, score, comment, client, serv);
-	}
-	
-	@RequestMapping(method=RequestMethod.GET, value = "/delReview")
-	public void DelReview(@RequestParam(name="id") Long id) throws ParseException {
-		reviewSVC.DelReview(id);
-	}
-	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/reviews")
-	public List<ReviewDto> GetReviews() throws ParseException {
-		return reviewSVC.GetReviews();
+	@RequestMapping(method=RequestMethod.GET, value = "/getWorkerFreeTime", produces = {"application/json"})
+	public String GetWorkerFreeTime(@RequestParam(name="date", required=true) String p1, 
+			@RequestParam(name="name", required=true) String name) throws ParseException {
+		List<Date> aaa = recordSVC.GetFreeTime(p1, name);
+		JSONArray json = new JSONArray();
+		for(Date a : aaa) {
+			json.put(a.getHours() + ":" + a.getMinutes());
+		}
+		return json.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/review")
-	public ReviewDto GetReview(@RequestParam(name="id") Long id) throws ParseException {
-		return reviewSVC.GetReview(id);
+	@RequestMapping(method=RequestMethod.GET, value = "/addReview", produces = {"application/json"})
+	public String AddReview(@RequestParam(name="score", required=true) Long score, @RequestParam(name="comment", required=false) String comment, 
+			@RequestParam(name="client", required=true) String client, @RequestParam(name="service", required=true) String serv) throws ParseException {
+		int res = reviewSVC.AddReview(score, comment, client, serv);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/reviewsByService")
-	public List<ReviewDto> GetReviewsByService(@RequestParam(name="name") String name) throws ParseException {
-		return reviewSVC.GetReviewsByService(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/setReview", produces = {"application/json"})
+	public String SetReview(@RequestParam(name="id", required=true) Long id, @RequestParam(name="score", required=false) Long score, 
+			@RequestParam(name="comment", required=false) String comment, @RequestParam(name="client", required=false) String client, 
+			@RequestParam(name="service", required=false) String serv) throws ParseException {
+		int res = reviewSVC.SetReview(id, score, comment, client, serv);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
 	}
 	
-	@PutMapping(produces = {"application/json"})
 	@ResponseBody
-	@RequestMapping(method=RequestMethod.GET, value = "/reviewsByClient")
-	public List<ReviewDto> GetReviewsByClient(@RequestParam(name="name") String name) throws ParseException {
-		return reviewSVC.GetReviewsByClient(name);
+	@RequestMapping(method=RequestMethod.GET, value = "/delReview", produces = {"application/json"})
+	public String DelReview(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		int res = reviewSVC.DelReview(id);
+		JSONObject js = new JSONObject();
+		js.put("response", res);
+		return js.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/reviews", produces = {"application/json"})
+	public String GetReviews() throws ParseException {
+		List<ReviewDto> aaa = reviewSVC.GetReviews();
+		JSONArray json = new JSONArray();
+		for(ReviewDto a : aaa) {
+			json.put(CreateReviewJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/review", produces = {"application/json"})
+	public String GetReview(@RequestParam(name="id", required=true) Long id) throws ParseException {
+		ReviewDto aaa = reviewSVC.GetReview(id);
+		if(aaa != null) {
+			JSONObject js = CreateReviewJSON(aaa);
+			return js.toString();
+		}
+		else {
+			JSONObject js = new JSONObject();
+			js.put("response", "2");
+			return js.toString();
+		}
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/reviewsByService", produces = {"application/json"})
+	public String GetReviewsByService(@RequestParam(name="name", required=true) String name) throws ParseException {
+		List<ReviewDto> aaa = reviewSVC.GetReviewsByService(name);
+		JSONArray json = new JSONArray();
+		for(ReviewDto a : aaa) {
+			json.put(CreateReviewJSON(a));
+		}
+		return json.toString();
+	}
+	
+	@ResponseBody
+	@RequestMapping(method=RequestMethod.GET, value = "/reviewsByClient", produces = {"application/json"})
+	public String GetReviewsByClient(@RequestParam(name="name", required=true) String name) throws ParseException {
+		List<ReviewDto> aaa = reviewSVC.GetReviewsByClient(name);
+		JSONArray json = new JSONArray();
+		for(ReviewDto a : aaa) {
+			json.put(CreateReviewJSON(a));
+		}
+		return json.toString();
 	}
 	
 }

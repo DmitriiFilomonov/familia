@@ -39,6 +39,12 @@ public class WorkerDto implements Serializable {
 	@Column
 	public String foto;
 	
+	@Column
+	public String login;
+	
+	@Column
+	public String pass;
+	
 	@ManyToOne
 	@JoinColumn(name = "Spec")
 	public SpecDto spec;
@@ -75,7 +81,7 @@ public class WorkerDto implements Serializable {
 		
 	}
 	
-	public WorkerDto(String name, Long time, Float money, Float notMoney, String prof, String fot, SpecDto sp) {
+	public WorkerDto(String name, Long time, Float money, Float notMoney, String prof, String fot, String login, String pass, SpecDto sp) {
 		this.fio = name;
 		this.workTime = time;
 		this.salary = money;
@@ -83,5 +89,7 @@ public class WorkerDto implements Serializable {
 		this.profile = prof;
 		this.foto = fot;
 		this.spec = sp;
+		this.login = login;
+		this.pass = pass;
 	}
 }

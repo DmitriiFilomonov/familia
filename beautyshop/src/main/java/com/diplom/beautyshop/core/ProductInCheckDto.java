@@ -27,6 +27,9 @@ public class ProductInCheckDto implements Serializable {
 	public Long amount;
 	
 	@Column
+	public Long lastAmount;
+	
+	@Column
 	public Float price;
 	
 	@ManyToOne
